@@ -1,0 +1,238 @@
+import { useState, useEffect, useCallback } from "react";
+
+const INITIAL_EVENTS = [
+  { id: 1, title: "Midterm Exam - Data Structures", date: "2026-03-20T09:00:00", category: "academic", pinned: false },
+  { id: 2, title: "Software Engineering Project Due", date: "2026-03-25T23:59:00", category: "academic", pinned: false },
+  { id: 3, title: "Spring Break Starts", date: "2026-04-04T17:00:00", category: "social", pinned: false },
+  { id: 4, title: "Career Fair", date: "2026-03-15T10:00:00", category: "academic", pinned: false },
+  { id: 5, title: "Campus Music Festival", date: "2026-04-12T18:00:00", category: "social", pinned: false },
+  { id: 6, title: "Final Exam - Algorithms", date: "2026-04-28T14:00:00", category: "academic", pinned: false },
+  { id: 7, title: "Club Hackathon", date: "2026-03-29T08:00:00", category: "social", pinned: false },
+];
+
+function getTimeLeft(dateStr) {
+  const diff = new Date(dateStr) - new Date();
+  if (diff <= 0) return null;
+  const d = Math.floor(diff / 86400000);
+  const h = Math.floor((diff % 86400000) / 3600000);
+  const m = Math.floor((diff % 3600000) / 60000);
+  const s = Math.floor((diff % 60000) / 1000);
+  return { total: diff, d, h, m, s };
+}
+
+function getUrgency(diff) {
+  if (!diff) return "past";
+  const hrs = diff.total / 3600000;
+  if (hrs < 24) return "critical";
+  if (hrs < 72) return "urgent";
+  if (hrs < 168) return "soon";
+  return "relaxed";
+}
+
+const urgencyStyles = {
+  critical: { bg: "linear-gradient(135deg, #dc2626 0%, #991b1b 100%)", text: "#fff", badge: "#fca5a5", badgeText: "#7f1d1d", pulse: true },
+  urgent: { bg: "linear-gradient(135deg, #f59e0b 0%, #d97706 100%)", text: "#fff", badge: "#fde68a", badgeText: "#78350f", pulse: false },
+  soon: { bg: "linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)", text: "#fff", badge: "#bfdbfe", badgeText: "#1e3a5f", pulse: false },
+  relaxed: { bg: "linear-gradient(135deg, #1e293b 0%, #0f172a 100%)", text: "#e2e8f0", badge: "#334155", badgeText: "#cbd5e1", pulse: false },
+  past: { bg: "linear-gradient(135deg, #374151 0%, #1f2937 100%)", text: "#9ca3af", badge: "#4b5563", badgeText: "#9ca3af", pulse: false },
+};
+
+const categoryColors = { academic: "#f87171", social: "#34d399" };
+
+function CountdownUnit({ value, label, color }) {
+  return (
+    <div style={{ textAlign: "center", minWidth: 48 }}>
+      <div style={{ fontSize: 28, fontWeight: 800, color, lineHeight: 1.1, fontVariantNumeric: "tabular-nums" }}>{String(value).padStart(2, "0")}</div>
+      <div style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 1, opacity: 0.7, color, marginTop: 2 }}>{label}</div>
+    </div>
+  );
+}
+
+function EventCard({ event, onDelete, onPin }) {
+  const [time, setTime] = useState(getTimeLeft(event.date));
+  useEffect(() => {
+    const iv = setInterval(() => setTime(getTimeLeft(event.date)), 1000);
+    return () => clearInterval(iv);
+  }, [event.date]);
+
+  const urgency = getUrgency(time);
+  const s = urgencyStyles[urgency];
+  const isPast = urgency === "past";
+
+  return (
+    <div style={{
+      background: s.bg, borderRadius: 16, padding: "20px 24px", color: s.text,
+      position: "relative", overflow: "hidden", opacity: isPast ? 0.5 : 1,
+      animation: s.pulse ? "pulse 2s infinite" : "none",
+      transition: "transform 0.2s, box-shadow 0.2s",
+    }}
+      onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-2px)"; e.currentTarget.style.boxShadow = "0 8px 30px rgba(0,0,0,0.3)"; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = ""; e.currentTarget.style.boxShadow = ""; }}
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 12 }}>
+        <div style={{ flex: 1 }}>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6, flexWrap: "wrap" }}>
+            <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1.5, background: categoryColors[event.category], color: "#000", padding: "2px 8px", borderRadius: 99 }}>
+              {event.category}
+            </span>
+            <span style={{ fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: 1.5, background: s.badge, color: s.badgeText, padding: "2px 8px", borderRadius: 99 }}>
+              {isPast ? "Passed" : urgency}
+            </span>
+          </div>
+          <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, lineHeight: 1.3 }}>{event.title}</h3>
+          <p style={{ fontSize: 12, opacity: 0.7, margin: "4px 0 0" }}>{new Date(event.date).toLocaleString("en-US", { weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" })}</p>
+        </div>
+        <div style={{ display: "flex", gap: 4 }}>
+          <button onClick={() => onPin(event.id)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: s.text, borderRadius: 8, width: 32, height: 32, cursor: "pointer", fontSize: 14 }} title="Pin">
+            {event.pinned ? "★" : "☆"}
+          </button>
+          <button onClick={() => onDelete(event.id)} style={{ background: "rgba(255,255,255,0.15)", border: "none", color: s.text, borderRadius: 8, width: 32, height: 32, cursor: "pointer", fontSize: 14 }} title="Delete">
+            ✕
+          </button>
+        </div>
+      </div>
+      {!isPast && time && (
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-start", marginTop: 8 }}>
+          <CountdownUnit value={time.d} label="Days" color={s.text} />
+          <div style={{ fontSize: 24, fontWeight: 300, color: s.text, opacity: 0.4, alignSelf: "flex-start", lineHeight: "32px" }}>:</div>
+          <CountdownUnit value={time.h} label="Hrs" color={s.text} />
+          <div style={{ fontSize: 24, fontWeight: 300, color: s.text, opacity: 0.4, alignSelf: "flex-start", lineHeight: "32px" }}>:</div>
+          <CountdownUnit value={time.m} label="Min" color={s.text} />
+          <div style={{ fontSize: 24, fontWeight: 300, color: s.text, opacity: 0.4, alignSelf: "flex-start", lineHeight: "32px" }}>:</div>
+          <CountdownUnit value={time.s} label="Sec" color={s.text} />
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function App() {
+  // const [events, setEvents] = useState(INITIAL_EVENTS);
+
+  const [events, setEvents] = useState(() => {
+  const saved = localStorage.getItem("countdown-events");
+  return saved ? JSON.parse(saved) : INITIAL_EVENTS;
+  });
+
+  useEffect(() => {
+    localStorage.setItem("countdown-events", JSON.stringify(events));
+  }, [events]);
+  
+  const [filter, setFilter] = useState("all");
+  const [showAdd, setShowAdd] = useState(false);
+  const [newTitle, setNewTitle] = useState("");
+  const [newDate, setNewDate] = useState("");
+  const [newCat, setNewCat] = useState("academic");
+  const [, setTick] = useState(0);
+
+  useEffect(() => {
+    const iv = setInterval(() => setTick(t => t + 1), 1000);
+    return () => clearInterval(iv);
+  }, []);
+
+  const addEvent = useCallback(() => {
+    if (!newTitle.trim() || !newDate) return;
+    setEvents(ev => [...ev, { id: Date.now(), title: newTitle.trim(), date: newDate, category: newCat, pinned: false }]);
+    setNewTitle(""); setNewDate(""); setNewCat("academic"); setShowAdd(false);
+  }, [newTitle, newDate, newCat]);
+
+  const deleteEvent = useCallback((id) => setEvents(ev => ev.filter(e => e.id !== id)), []);
+  const pinEvent = useCallback((id) => setEvents(ev => ev.map(e => e.id === id ? { ...e, pinned: !e.pinned } : e)), []);
+
+  const filtered = events
+    .filter(e => filter === "all" || e.category === filter)
+    .sort((a, b) => {
+      if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+      const aLeft = getTimeLeft(a.date), bLeft = getTimeLeft(b.date);
+      if (!aLeft && !bLeft) return 0;
+      if (!aLeft) return 1;
+      if (!bLeft) return -1;
+      return aLeft.total - bLeft.total;
+    });
+
+  const upcoming = events.filter(e => getTimeLeft(e.date));
+  const nearest = upcoming.length ? upcoming.reduce((a, b) => (getTimeLeft(a.date)?.total || Infinity) < (getTimeLeft(b.date)?.total || Infinity) ? a : b) : null;
+  const nearestTime = nearest ? getTimeLeft(nearest.date) : null;
+
+  const btnStyle = (active) => ({
+    padding: "8px 20px", borderRadius: 99, border: "none", fontWeight: 600, fontSize: 13, cursor: "pointer",
+    background: active ? "#fff" : "rgba(255,255,255,0.08)", color: active ? "#0f172a" : "#94a3b8",
+    transition: "all 0.2s",
+  });
+
+  const inputStyle = {
+    background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 10,
+    padding: "10px 14px", color: "#e2e8f0", fontSize: 14, outline: "none", width: "100%", boxSizing: "border-box",
+  };
+
+  return (
+    <div style={{ minHeight: "100vh", background: "#0b0f1a", color: "#e2e8f0", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif" }}>
+      <style>{`
+        @keyframes pulse { 0%,100%{box-shadow:0 0 0 0 rgba(220,38,38,0.4)} 50%{box-shadow:0 0 0 12px rgba(220,38,38,0)} }
+        input[type="datetime-local"]::-webkit-calendar-picker-indicator { filter: invert(0.7); }
+      `}</style>
+
+      {/* Header */}
+      <div style={{ padding: "32px 24px 24px", maxWidth: 640, margin: "0 auto" }}>
+        <h1 style={{ fontSize: 28, fontWeight: 800, margin: 0, background: "linear-gradient(135deg, #60a5fa, #a78bfa)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+          Campus Countdown
+        </h1>
+        <p style={{ color: "#64748b", margin: "4px 0 0", fontSize: 14 }}>Live Urgency Awareness</p>
+      </div>
+
+      {/* Next Up Banner */}
+      {nearest && nearestTime && (
+        <div style={{ maxWidth: 640, margin: "0 auto 20px", padding: "0 24px" }}>
+          <div style={{ background: "linear-gradient(135deg, #1e1b4b, #312e81)", borderRadius: 16, padding: "20px 24px" }}>
+            <div style={{ fontSize: 11, textTransform: "uppercase", letterSpacing: 2, color: "#818cf8", marginBottom: 4 }}>Next Up</div>
+            <div style={{ fontSize: 16, fontWeight: 700 }}>{nearest.title}</div>
+            <div style={{ display: "flex", gap: 16, marginTop: 12 }}>
+              <span style={{ fontSize: 22, fontWeight: 800 }}>{nearestTime.d}<span style={{ fontSize: 12, fontWeight: 400, opacity: 0.6 }}>d</span></span>
+              <span style={{ fontSize: 22, fontWeight: 800 }}>{nearestTime.h}<span style={{ fontSize: 12, fontWeight: 400, opacity: 0.6 }}>h</span></span>
+              <span style={{ fontSize: 22, fontWeight: 800 }}>{nearestTime.m}<span style={{ fontSize: 12, fontWeight: 400, opacity: 0.6 }}>m</span></span>
+              <span style={{ fontSize: 22, fontWeight: 800 }}>{nearestTime.s}<span style={{ fontSize: 12, fontWeight: 400, opacity: 0.6 }}>s</span></span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filters + Add */}
+      <div style={{ maxWidth: 640, margin: "0 auto", padding: "0 24px 16px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+        <div style={{ display: "flex", gap: 8 }}>
+          {[["all", "All"], ["academic", "Academic"], ["social", "Social"]].map(([val, label]) => (
+            <button key={val} onClick={() => setFilter(val)} style={btnStyle(filter === val)}>{label}</button>
+          ))}
+        </div>
+        <button onClick={() => setShowAdd(!showAdd)} style={{ ...btnStyle(false), background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff" }}>
+          {showAdd ? "Cancel" : "+ Add Event"}
+        </button>
+      </div>
+
+      {/* Add Form */}
+      {showAdd && (
+        <div style={{ maxWidth: 640, margin: "0 auto 20px", padding: "0 24px" }}>
+          <div style={{ background: "rgba(255,255,255,0.04)", borderRadius: 16, padding: 20, display: "flex", flexDirection: "column", gap: 12 }}>
+            <input placeholder="Event title" value={newTitle} onChange={e => setNewTitle(e.target.value)} style={inputStyle} />
+            <input type="datetime-local" value={newDate} onChange={e => setNewDate(e.target.value)} style={inputStyle} />
+            <div style={{ display: "flex", gap: 8 }}>
+              {["academic", "social"].map(c => (
+                <button key={c} onClick={() => setNewCat(c)} style={{ ...btnStyle(newCat === c), flex: 1, background: newCat === c ? categoryColors[c] : "rgba(255,255,255,0.06)", color: newCat === c ? "#000" : "#94a3b8" }}>
+                  {c.charAt(0).toUpperCase() + c.slice(1)}
+                </button>
+              ))}
+            </div>
+            <button onClick={addEvent} style={{ padding: "12px", borderRadius: 10, border: "none", background: "linear-gradient(135deg, #6366f1, #8b5cf6)", color: "#fff", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+              Add Deadline
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Event List */}
+      <div style={{ maxWidth: 640, margin: "0 auto", padding: "0 24px 40px", display: "flex", flexDirection: "column", gap: 12 }}>
+        {filtered.length === 0 && <p style={{ textAlign: "center", color: "#475569", padding: 40 }}>No events found. Add one above!</p>}
+        {filtered.map(e => <EventCard key={e.id} event={e} onDelete={deleteEvent} onPin={pinEvent} />)}
+      </div>
+    </div>
+  );
+}
