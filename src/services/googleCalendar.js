@@ -1,6 +1,7 @@
 export async function fetchGoogleCalendarEvents(accessToken) {
   const now = new Date().toISOString();
-  const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(now)}&singleEvents=true&orderBy=startTime&maxResults=50`;
+  const timeMax = new Date(Date.now() + 50 * 24 * 60 * 60 * 1000).toISOString();
+  const url = `https://www.googleapis.com/calendar/v3/calendars/primary/events?timeMin=${encodeURIComponent(now)}&timeMax=${encodeURIComponent(timeMax)}&singleEvents=true&orderBy=startTime`;
 
   const res = await fetch(url, {
     headers: { Authorization: `Bearer ${accessToken}` },
